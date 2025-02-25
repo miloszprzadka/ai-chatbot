@@ -31,7 +31,7 @@ CORS(app,
          "origins": [FRONTEND_ORIGIN,"http://127.0.0.1:5500"],
          "methods": ["GET", "POST", "OPTIONS"],
          "allow_headers": ["Content-Type", "Authorization"],  
-         "supports_credentials": False
+         "supports_credentials": True
      }})
 
 
