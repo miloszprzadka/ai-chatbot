@@ -12,11 +12,15 @@
   ],
   "routes": [
     {
-      "handle": "filesystem"
+      "src": "/",
+      "dest": "/authentication.html"
     },
     {
-      "src": "/",
-      "dest": "/authorization.html"
+      "src": "/authentication",
+      "dest": "/authentication.html"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
