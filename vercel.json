@@ -1,5 +1,14 @@
 {
-  "ignoreCommand": "exit 0",
+  "builds": [
+    {
+      "src": "frontend/*",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "backend/app.py",
+      "use": "@vercel/python"
+    }
+  ],
   "routes": [
     {
       "src": "/(.*)",
