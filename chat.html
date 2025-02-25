@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 0 20px;
+            background-color: #1b1b1b;
+        }
+
+        h1{
+            color: white;
+            display: flex;
+            justify-content: center;
+        }
+
+        #chatHistory {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user-message {
+            background-color: #007bff;
+            margin-left: 20%;
+        }
+        .ai-message {
+            background-color: #f5f5f5;
+            margin-right: 20%;
+        }
+        .error-message {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        #messageInput {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 5px;
+            transition: opacity 0.3s;
+        }
+        #messageInput:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        #typingIndicator {
+            color: white;
+            margin-top: 10px;
+            font-style: italic;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #typingIndicator.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Chatbot</h1>
+    <div id="chatHistory"></div>
+    <div id="typingIndicator">AI is thinking...</div>
+    <div>
+        <textarea id="messageInput" placeholder="Enter your message here..." rows="4"></textarea>
+        <div class="button-container">
+            <button id="sendButton" onclick="sendMessage()">Send Message</button>
+        </div>
+    </div>
+    <script src="config.js"></script>
+    <script>
+
+    const API = window.API_URL || "http://localhost:5000";
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/index.html'; 
+            return;
+        }
+        getHistory(); 
+    });
+
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const typingIndicator = document.getElementById('typingIndicator');
+
+    function setInputsEnabled(enabled) {
+        messageInput.disabled = !enabled;
+        sendButton.disabled = !enabled;
+        typingIndicator.className = enabled ? '' : 'visible';
+    }
+
+    async function sendMessage() {
+        const message = messageInput.value.trim();
+        const token = localStorage.getItem('token'); 
+        
+        if (!message) {
+            console.log('No message to send');
+            return;
+        }
+
+        try {
+            setInputsEnabled(false);
+            addMessageToChat('user', message);
+
+            const response = await fetch(`${API}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({ message })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.response) {
+                messageInput.value = '';
+                getHistory(1);
+            }
+
+        } catch (error) {
+            console.error('Error in sendMessage:', error);
+            addMessageToChat('error', 'Error: ' + error.message);
+        } finally {
+            setInputsEnabled(true);
+        }
+    }
+    function addMessageToChat(type, content) {
+        const chatHistory = document.getElementById('chatHistory');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}-message`;
+        messageDiv.textContent = content;
+        chatHistory.appendChild(messageDiv);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+
+    let currentPage = 1;
+    const messagesPerPage = 10;
+    let isLoading = false;
+
+    async function getHistory(page = 1) {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No token found');
+                return;
+            }
+
+            setInputsEnabled(false);
+            isLoading = true;
+
+            const response = await fetch(`${API}/my-chats?page=${page}&per_page=${messagesPerPage}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (page === 1) {
+                document.getElementById('chatHistory').innerHTML = '';
+            }
+            
+            if (data.history) {
+                const chatHistory = document.getElementById('chatHistory');
+                
+                data.history.reverse().forEach(chat => {
+                    const messageContainer = document.createElement('div');
+                    messageContainer.innerHTML = `
+                        <div class="message user-message">${chat.message}</div>
+                        <div class="message ai-message">${chat.response}</div>
+                    `;
+                    
+                    if (page > 1) {
+                        chatHistory.insertBefore(messageContainer, chatHistory.firstChild);
+                    } else {
+                        chatHistory.appendChild(messageContainer);
+                    }
+                });
+
+                currentPage = data.pagination.current_page;
+                
+                updateLoadMoreButton(data.pagination);
+            }
+
+            
+        } catch (error) {
+            console.error('Error in getHistory:', error);
+            addMessageToChat('error', 'Error loading history: ' + error.message);
+        } finally {
+            setInputsEnabled(true);
+            isLoading = false;
+        }
+    }
+
+    function updateLoadMoreButton(pagination) {
+        const existingButton = document.getElementById('loadMoreButton');
+        if (existingButton) {
+            existingButton.remove();
+        }
+
+        if (pagination.has_previous) {
+            const chatHistory = document.getElementById('chatHistory');
+            const loadMoreButton = document.createElement('button');
+            loadMoreButton.id = 'loadMoreButton';
+            loadMoreButton.textContent = 'Load More Messages';
+            loadMoreButton.className = 'load-more-button';
+            loadMoreButton.onclick = () => {
+                if (!isLoading) {
+                    getHistory(pagination.current_page + 1);
+                }
+            };
+            chatHistory.insertBefore(loadMoreButton, chatHistory.firstChild);
+        }
+    }
+
+    messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey && !messageInput.disabled) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+
+    </script>
+</body>
+</html>

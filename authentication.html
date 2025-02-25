@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1b1b1b;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .auth-container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .tab.active {
+            color: #007bff;
+            border-bottom: 2px solid #007bff;
+            margin-bottom: -2px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .success-message {
+            color: #28a745;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .loading {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('login')" id="loginTab">Login</button>
+            <button class="tab" onclick="switchTab('register')" id="registerTab">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="loginEmail">Email</label>
+                <input type="email" id="loginEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" required>
+            </div>
+            <button type="submit">Login</button>
+            <div id="loginMessage"></div>
+        </form>
+
+        <!-- Register Form -->
+        <form id="registerForm" style="display: none;" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" required>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" required>
+            </div>
+            <button type="submit">Register</button>
+            <div id="registerMessage"></div>
+        </form>
+    </div>
+    <script src="config.js"></script>
+    <script>
+
+        const API = window.API_URL || "http://localhost:5000";  
+
+        function switchTab(tab) {
+            document.getElementById('loginTab').classList.toggle('active', tab === 'login');
+            document.getElementById('registerTab').classList.toggle('active', tab === 'register');
+            
+            document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+            
+            document.getElementById('loginMessage').textContent = '';
+            document.getElementById('registerMessage').textContent = '';
+            document.getElementById('loginForm').reset();
+            document.getElementById('registerForm').reset();
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const messageDiv = document.getElementById('loginMessage');
+            const form = document.getElementById('loginForm');
+            
+            try {
+                form.classList.add('loading');
+                const response = await fetch(`${API}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById('loginEmail').value,
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = 'Login successful!';
+                    messageDiv.className = 'success-message';
+                    localStorage.setItem('token', data.access_token);
+                    window.location.href = '/chat.html';
+                } else {
+                    messageDiv.textContent = data.error || 'Login failed';
+                    messageDiv.className = 'error-message';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.className = 'error-message';
+            } finally {
+                form.classList.remove('loading');
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            const messageDiv = document.getElementById('registerMessage');
+            const form = document.getElementById('registerForm');
+            
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (password !== confirmPassword) {
+                messageDiv.textContent = 'Passwords do not match';
+                messageDiv.className = 'error-message';
+                return;
+            }
+
+            try {
+                form.classList.add('loading');
+                const response = await fetch(`${API}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: document.getElementById('registerEmail').value,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = 'Registration successful! Please login.';
+                    messageDiv.className = 'success-message';
+                    setTimeout(() => switchTab('login'), 2000);
+                } else {
+                    messageDiv.textContent = data.error || 'Registration failed';
+                    messageDiv.className = 'error-message';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.className = 'error-message';
+            } finally {
+                form.classList.remove('loading');
+            }
+        }
+    </script>
+</body>
+</html>
