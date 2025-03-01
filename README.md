@@ -2,6 +2,16 @@ AI Chatbot with Authentication
 
 This project is a full-stack AI-powered chatbot with user authentication, built using Flask (Python) for the backend and HTML, CSS, and JavaScript for the frontend. Users can register, log in, and chat with an AI assistant, with their conversation history stored securely in a PostgreSQL database.
 
+---------------------------------------------
+
+Test account
+
+E-mail: test@test.com
+
+Password: test123
+
+---------------------------------------------
+
 Features
 
  • User Authentication – Register & login with encrypted passwords (bcrypt)
@@ -17,6 +27,8 @@ Features
  • CORS Configuration – Secure API communication
 	
  • Deployment-Ready – Deployed on Render (backend) & Vercel (frontend)
+
+---------------------------------------------
 
 Tech Stack
 
