@@ -101,25 +101,49 @@ def chat():
             return jsonify({"error": "Content-Type must be application/json"}), 415
 
         user_message = request.json.get("message")
+        
+        # Get recent conversation history
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Limit to last N messages to stay within context window
+        cur.execute(
+            """
+            SELECT message, response
+            FROM chats
+            WHERE user_id = %s
+            ORDER BY timestamp DESC
+            LIMIT 10
+            """,
+            (user_id,)
+        )
+        recent_chats = cur.fetchall()
+        cur.close()
+        
+        # Build conversation history in reverse chronological order
+        messages = []
+        # Add previous messages in chronological order
+        for msg, resp in reversed(recent_chats):
+            messages.append({"role": "user", "content": msg})
+            messages.append({"role": "assistant", "content": resp})
+        
+        # Add the current message
+        messages.append({"role": "user", "content": user_message})
 
         try:
             client = Groq(api_key=os.getenv("GROQ_API_KEY"))
             completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": user_message}],
+                messages=messages,
                 model="llama-3.3-70b-versatile",
             )
             ai_response = completion.choices[0].message.content
 
-            conn = get_db_connection()
+            # Save to database (same as before)
             cur = conn.cursor()
-            
             cur.execute(
                 "INSERT INTO chats (user_id, message, response) VALUES (%s, %s, %s) RETURNING id",
                 (user_id, user_message, ai_response)
             )
-            
             chat_id = cur.fetchone()[0]
-            
             conn.commit()
             cur.close()
             conn.close()
